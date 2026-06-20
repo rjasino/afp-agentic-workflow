@@ -2,7 +2,15 @@ param(
     [switch]$Install
 )
 
-$tools = @("node", "npm", "php", "python", "uv", "composer")
+$tools = @(
+    @{ Name = "node"; CheckCommand = "node --version"; InstallCommand = "winget install OpenJS.NodeJS.LTS" },
+    @{ Name = "npm"; CheckCommand = "npm --version"; InstallCommand = "winget install OpenJS.NodeJS.LTS" },
+    @{ Name = "php"; CheckCommand = "php --version"; InstallCommand = "winget install PHP.PHP.8.3" },
+    @{ Name = "python"; CheckCommand = "python --version"; InstallCommand = "winget install Python.Python.3.12" },
+    @{ Name = "uv"; CheckCommand = "uv --version"; InstallCommand = 'powershell -c "irm https://astral.sh/uv/install.ps1 | iex"' },
+    @{ Name = "composer"; CheckCommand = "composer --version"; InstallCommand = "winget install Composer.Composer" }
+)
+
 $passCount = 0
 $failCount = 0
 
@@ -12,70 +20,66 @@ Write-Output "========================================"
 
 foreach ($tool in $tools) {
     Write-Output "----------------------------------------"
-    Write-Output "Checking $tool..."
+    Write-Output "Checking $($tool.Name)..."
 
-    $version = $null
-    $available = $false
-
-    if ($tool -eq "npm") {
-        $result = & "node" -e "try { require('child_process').execSync('npm --version', { stdio: 'pipe' }).toString().trim(); console.log('OK') } catch(e) { console.log('FAIL') }" 2>$null
-        if ($result -eq "OK") {
-            $version = & "npm" --version 2>$null
-        }
-    } else {
-        $version = & $tool --version 2>$null
+    $checkResult = $null
+    try {
+        $checkResult = Invoke-Expression $tool.CheckCommand 2>&1
+    } catch {
+        $checkResult = $null
     }
 
-    if ($LASTEXITCODE -eq 0 -and $version) {
-        Write-Output "[PASS] $tool is available. Version: $($version.Trim())"
+    if ($LASTEXITCODE -eq 0 -and $checkResult) {
+        $versionLine = ($checkResult | Select-Object -First 1).Trim()
+        Write-Output "[PASS] $($tool.Name) is available. Version: $versionLine"
         $passCount++
-        $available = $true
-    }
+    } else {
+        $errorMsg = ($checkResult | Out-String).Trim()
+        if ($errorMsg) {
+            Write-Output $errorMsg
+        }
 
-    if (-not $available) {
-        Write-Output "  $tool is not available."
-        $failCount++
-
-        if ($tool -eq "npm") {
-            Write-Output "  Attempting to set execution policy..."
-            Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-            $version = & "npm" --version 2>$null
-            if ($LASTEXITCODE -eq 0 -and $version) {
-                Write-Output "[PASS] npm is available. Version: $($version.Trim())"
-                $failCount--
+        if ($tool.Name -eq "npm") {
+            Write-Output "npm check failed. Attempting to set execution policy..."
+            Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+            try {
+                $checkResult = Invoke-Expression $tool.CheckCommand 2>&1
+            } catch {
+                $checkResult = $null
+            }
+            if ($LASTEXITCODE -eq 0 -and $checkResult) {
+                $versionLine = ($checkResult | Select-Object -First 1).Trim()
+                Write-Output "[PASS] $($tool.Name) is available. Version: $versionLine"
                 $passCount++
-                $available = $true
+                continue
             }
         }
 
-        if (-not $available -and $Install) {
-            Write-Output "  Installing $tool..."
-            switch ($tool) {
-                "node" {
-                    winget install OpenJS.NodeJS -e 2>$null
+        if ($Install) {
+            Write-Output "$($tool.Name) is not available. Installing..."
+            try {
+                Invoke-Expression $tool.InstallCommand 2>&1 | ForEach-Object { Write-Output $_ }
+                Write-Output "$($tool.Name) installation completed."
+                try {
+                    $checkResult = Invoke-Expression $tool.CheckCommand 2>&1
+                } catch {
+                    $checkResult = $null
                 }
-                "npm" {
-                    winget install OpenJS.NodeJS -e 2>$null
+                if ($LASTEXITCODE -eq 0 -and $checkResult) {
+                    $versionLine = ($checkResult | Select-Object -First 1).Trim()
+                    Write-Output "[PASS] $($tool.Name) is available. Version: $versionLine"
+                    $passCount++
+                } else {
+                    Write-Output "[FAIL] $($tool.Name) installation may have failed."
+                    $failCount++
                 }
-                "php" {
-                    winget install PHP.PHP -e 2>$null
-                }
-                "python" {
-                    winget install Python.Python.3.12 -e 2>$null
-                }
-                "uv" {
-                    winget install astral.uv -e 2>$null
-                }
-                "composer" {
-                    winget install Composer.Composer -e 2>$null
-                }
+            } catch {
+                Write-Output "Failed to install $($tool.Name): $_"
+                $failCount++
             }
-            $version = & $tool --version 2>$null
-            if ($LASTEXITCODE -eq 0 -and $version) {
-                Write-Output "[PASS] $tool installed. Version: $($version.Trim())"
-                $failCount--
-                $passCount++
-            }
+        } else {
+            Write-Output "[FAIL] $($tool.Name) is not available. Use -Install to auto-install."
+            $failCount++
         }
     }
 }
