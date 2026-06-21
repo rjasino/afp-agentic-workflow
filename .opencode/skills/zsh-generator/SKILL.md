@@ -1,3 +1,8 @@
+---
+name: zsh-generator
+description: A skill that generates Zsh scripts based on user input.
+---
+
 ## Rule
 
 - Use this skill when the machine is running MacOS.

@@ -1,3 +1,8 @@
+---
+name: bash-generator
+description: A skill that generates Bash scripts based on user input.
+---
+
 ## Rule
 
 - Use this skill when the machine is running Linux.

@@ -1,3 +1,8 @@
+---
+name: ps-generator
+description: A skill that generates PowerShell scripts based on user input.
+---
+
 ## Rule
 
 - Use powershell 5.1 instead of looking for powershell 7.0
