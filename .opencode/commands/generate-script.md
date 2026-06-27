@@ -31,10 +31,10 @@ Create variables for tool listing and for pass and fail flag.
 ### Rules
 
 - Check node first.
-- Check if the current tool is npm then if fails run, `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser`.
-- For uv installation use this: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- Check if the current tool is npm then if fails resolve the blocking issue.
+- For uv installation using Windows OS use this: `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
 - When tool is installing, display the log on screen to identify the progress or if installation was completed.
-- Filename should be `tool-check.ps1`.
+- Filename should be `tool-check` with appropriate file extension.
 - Use color coding if possible.
 - Follow this logging display:
 
